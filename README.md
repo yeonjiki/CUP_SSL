@@ -16,13 +16,7 @@ By fusing molecular and histopathological features, the model learns subtle, dif
 
 ## Method
 
-```
-DNA Methylation Array ──► Image Conversion ──► Vision Transformer ──┐
-                                                                      ├──► Feature Fusion ──► Primary Site Prediction
-miRNA Expression Data ──► Nonlinear Transform ──► Representation ──►┘
-                                  │
-               Histopathology Images (label-limited)
-```
+ ![Framework Overview](Journal.png)
 
 Key design choices:
 
