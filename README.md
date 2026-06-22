@@ -16,7 +16,7 @@ By fusing molecular and histopathological features, the model learns subtle, dif
 
 ## Method
 
- ![Framework Overview](figures/Journal.png)
+ ![Framework Overview](Journal.png)
 
 Key design choices:
 
