@@ -73,11 +73,6 @@ def build_patient_file_map(base_dir, file_suffix):
 
     return cancer_map
 
-
-# ======================================================
-# 1️⃣ MAP 생성
-# ======================================================
-
 print("🔍 Building TRAIN maps...")
 meth_txt_map = build_patient_file_map(METH_DIR, ".txt")
 mirna_map = build_patient_file_map(MIRNA_DIR, "mirnas.quantification.txt")
@@ -85,11 +80,6 @@ mirna_map = build_patient_file_map(MIRNA_DIR, "mirnas.quantification.txt")
 print("🔍 Building META maps...")
 meth_meta_map = build_patient_file_map(METH_META_DIR, ".txt")
 mirna_meta_map = build_patient_file_map(MIRNA_META_DIR, "mirnas.quantification.txt")
-
-
-# ======================================================
-# 2️⃣ 🔥 전체 cancer set으로 label_dict 생성
-# ======================================================
 
 train_cancers = set(meth_txt_map.keys()) & set(mirna_map.keys())
 meta_cancers = set(meth_meta_map.keys()) & set(mirna_meta_map.keys())
@@ -101,11 +91,6 @@ all_cancers = sorted(train_cancers | meta_cancers_norm)
 label_dict = {cancer: i for i, cancer in enumerate(all_cancers)}
 
 print("🔥 ALL cancers:", all_cancers)
-
-
-# ======================================================
-# 3️⃣ TRAIN samples
-# ======================================================
 
 train_samples = []
 
@@ -130,18 +115,13 @@ for cancer in train_cancers:
             "mirna_path": mirna_map[cancer][patient_id]
         })
 
-print(f"✅ TRAIN samples: {len(train_samples)}")
+print(f"TRAIN samples: {len(train_samples)}")
 
 with open(TRAIN_OUTPUT, "wb") as f:
     pickle.dump({
         "samples": train_samples,
         "label_dict": label_dict
     }, f)
-
-
-# ======================================================
-# 4️⃣ META samples (🔥 이제 skip 없음)
-# ======================================================
 
 meta_samples = []
 
@@ -165,12 +145,12 @@ for cancer in meta_cancers:
         meta_samples.append({
             "patient_id": patient_id,
             "cancer_type": base_cancer,
-            "label": label_dict[base_cancer],  # 🔥 항상 존재
+            "label": label_dict[base_cancer], 
             "methylation_path": png_path,
             "mirna_path": mirna_meta_map[cancer][patient_id]
         })
 
-print(f"\n✅ META samples: {len(meta_samples)}")
+print(f"\n META samples: {len(meta_samples)}")
 
 with open(META_OUTPUT, "wb") as f:
     pickle.dump({
@@ -178,4 +158,4 @@ with open(META_OUTPUT, "wb") as f:
         "label_dict": label_dict
     }, f)
 
-print(f"💾 Saved META index → {META_OUTPUT}")
+print(f"Saved META index → {META_OUTPUT}")
