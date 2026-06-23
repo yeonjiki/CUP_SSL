@@ -8,16 +8,11 @@ from config import SEED
 
 torch.manual_seed(SEED)
 
-
-# --------------------------------------------------
-# Dataset with structured masking
-# --------------------------------------------------
 class MirnaSSLDataset(Dataset):
     def __init__(self, feature_path):
         self.features = np.load(feature_path)
         self.features = torch.tensor(self.features, dtype=torch.float32)
 
-        # variance 기반 feature importance
         self.var = torch.var(self.features, dim=0)
         self.high_var_idx = torch.topk(self.var, k=int(0.3 * len(self.var))).indices
 
@@ -45,10 +40,6 @@ class MirnaSSLDataset(Dataset):
 
         return x_view1, x_view2, x
 
-
-# --------------------------------------------------
-# Encoder + Projection Head
-# --------------------------------------------------
 class MirnaSSLModel(nn.Module):
     def __init__(self, input_dim):
         super().__init__()
@@ -79,10 +70,6 @@ class MirnaSSLModel(nn.Module):
         recon = self.decoder(z)
         return z, p, recon
 
-
-# --------------------------------------------------
-# NT-Xent contrastive loss
-# --------------------------------------------------
 def contrastive_loss(z1, z2, temperature=0.5):
     z1 = nn.functional.normalize(z1, dim=1)
     z2 = nn.functional.normalize(z2, dim=1)
@@ -94,13 +81,9 @@ def contrastive_loss(z1, z2, temperature=0.5):
     loss = nn.CrossEntropyLoss()(similarity, labels)
     return loss
 
-
-# --------------------------------------------------
-# Generic SSL Trainer
-# --------------------------------------------------
 def train_ssl(feature_path, save_name):
 
-    print(f"\n🚀 Starting SSL pretrain for: {feature_path}")
+    print(f"\n Starting SSL pretrain for: {feature_path}")
 
     dataset = MirnaSSLDataset(feature_path)
     loader = DataLoader(dataset, batch_size=256, shuffle=True)
@@ -132,12 +115,8 @@ def train_ssl(feature_path, save_name):
         print(f"Epoch {epoch + 1} Loss: {total_loss / len(loader):.4f}")
 
     torch.save(model.encoder.state_dict(), save_name)
-    print(f"✅ Saved encoder to {save_name}")
+    print(f"Saved encoder to {save_name}")
 
-
-# --------------------------------------------------
-# Main
-# --------------------------------------------------
 if __name__ == "__main__":
 
     # TCGA pretrain
@@ -152,4 +131,4 @@ if __name__ == "__main__":
         save_name="mirna_ssl_encoder_meta.pt"
     )
 
-    print("\n🎉 ALL SSL PRETRAIN DONE")
+    print("\n ALL SSL PRETRAIN DONE")
