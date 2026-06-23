@@ -1,5 +1,3 @@
-# train_classifier_vit.py
-
 import os
 import torch
 import torch.nn as nn
@@ -14,7 +12,6 @@ import csv
 import random
 import math
 
-# config 파일의 변수들이 정의되어 있다고 가정합니다.
 from config import (
     IMG_ROOT,
     TEST_IMG_ROOT,
@@ -27,12 +24,8 @@ from config import (
     TRAIN_RATIO,
     SSL_CHECKPOINT,
 )
-# dataset 및 models 모듈이 정의되어 있다고 가정합니다.
 from image_dataset import MultiCancerDataset, get_sup_transform
 from image_model import ViTEncoder, ViTClassifier
-
-
-# -------------------- Utility / Setup --------------------
 
 def set_seed(seed: int):
     import random
@@ -59,10 +52,6 @@ def get_device() -> torch.device:
 
 
 class SimpleImageDataset(torch.utils.data.Dataset):
-    """
-    (path, mapped_label) 리스트로부터 이미지-라벨 쌍을 제공하는 간단한 Dataset.
-    """
-
     def __init__(self, samples, transform=None):
         self.samples = samples
         self.transform = transform
@@ -72,16 +61,10 @@ class SimpleImageDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         path, label = self.samples[idx]
-        # HACK: ViT가 RGB 입력을 요구하는 경우를 대비해 L(Gray) 대신 RGB로 로드합니다.
-        # 기존 코드가 convert("L")을 사용했으므로, ViTEncoder/Classifier의 설계에 따라 조정이 필요할 수 있습니다.
-        # ViTEncoder가 1채널을 받도록 설계되었다면 convert("L") 유지를, 3채널을 요구하면 convert("RGB")로 변경하세요.
         img = Image.open(path).convert("L")
         if self.transform:
             img = self.transform(img)
         return img, label
-
-
-# -------------------- TCGA target settings --------------------
 
 TARGET_TCGA = [
     "TCGA-CHOL",
@@ -93,14 +76,7 @@ TARGET_TCGA = [
     "TCGA-THYM",
 ]
 
-
-# -------------------- Evaluation helpers (unchanged, as the logic is correct) --------------------
-
 def compute_multiclass_mauc(probs_arr: np.ndarray, labels_arr: np.ndarray, class_indices: list = None):
-    """
-    Compute Hand & Till multi-class AUC (mAUC).
-    (Original function preserved as its logic is standard.)
-    """
     n_classes = probs_arr.shape[1]
     if class_indices is None:
         class_indices = list(range(n_classes))
@@ -150,49 +126,25 @@ def compute_multiclass_mauc(probs_arr: np.ndarray, labels_arr: np.ndarray, class
     mAUC = float(sum_pairs / valid_pair_count)
     return mAUC, pairwise_vals
 
-
-# -------------------- Main training + TCGA eval (Modified to Holdout + Final Meta Eval) --------------------
-
 def train_classifier():
     set_seed(SEED)
     device = get_device()
 
-    # ----- 1. TCGA 기본 데이터 로딩 및 분할 (80% Train, 20% Val) -----
     transform = get_sup_transform()
-
-    # NOTE: MultiCancerDataset의 split="train", train_ratio=TRAIN_RATIO 설정을 사용하여
-    # train_dl과 val_dl을 생성하도록 수정합니다. (기존 5-fold 로직 제거)
-    # 기존 MultiCancerDataset의 내부 로직이 80%/20% 분할을 지원한다고 가정합니다.
-    # 만약 지원하지 않는다면, 아래와 같이 random_split으로 대체해야 합니다.
-
-    # -----------------------------------------------------------------------------------------
-    # --- (A) MultiCancerDataset이 이미 전체 데이터셋을 로드하는 경우 (선호) ---
     base_ds = MultiCancerDataset(
         IMG_ROOT,
         transform=transform,
-        # split="all"과 같은 옵션으로 전체 데이터셋을 로드하도록 가정합니다.
-        # 내부적으로 'train'/'val' 분할 로직을 사용하지 않도록 수정하거나,
-        # 아래처럼 직접 분할합니다.
-        split="all",  # 또는 적절한 전체 로딩 옵션
+        split="all",  
         ssl=False,
     )
-
-    # Stratified Split이 필요하지만, 여기서는 간단히 Random Split을 사용합니다.
-    # Stratified Split을 위해 MultiCancerDataset을 수정하지 않는다는 가정하에 진행합니다.
-    # (원래 코드는 SKF를 사용했으므로, 실제로 Stratified Split을 유지해야 합니다.)
-    # 여기서는 임시로 Random Split을 사용합니다.
-
     ds_labels = [base_ds[i][1] for i in range(len(base_ds))]
 
-    # Stratified Split을 위한 인덱스 생성 (전체 base_ds에 대해)
     skf_init = StratifiedKFold(n_splits=int(1 / (1.0 - TRAIN_RATIO)), shuffle=True, random_state=SEED)
     # 첫 번째 fold를 Train/Val로 사용 (가장 간단한 Stratified Holdout)
     train_idx, val_idx = next(skf_init.split(range(len(base_ds)), ds_labels))
 
     train_subset = Subset(base_ds, train_idx)
     val_subset = Subset(base_ds, val_idx)
-
-    # -----------------------------------------------------------------------------------------
 
     num_classes = len(base_ds.classes)
     train_classes = base_ds.classes
@@ -203,7 +155,6 @@ def train_classifier():
     print(f"[Sup] Train samples (80%): {len(train_subset)}")
     print(f"[Sup] Validation samples (20%): {len(val_subset)}")
 
-    # ----- class weight 계산 (Train subset 기준) -----
     train_labels = [ds_labels[i] for i in train_idx]
     class_counts = Counter(train_labels)
 
@@ -218,7 +169,6 @@ def train_classifier():
     print(f"[Main] Class counts (Train): {class_counts}")
     print(f"[Main] Class weights (Train): {class_weights.cpu().numpy()}")
 
-    # 여기서는 device가 결정된 후에 pin_memory 설정을 합니다
     dl_pin_memory = (device.type == "cuda")
 
     train_dl = DataLoader(
@@ -236,7 +186,6 @@ def train_classifier():
         pin_memory=dl_pin_memory,
     )
 
-    # ---------------------- 2. 테스트 데이터 준비: Meta data (TEST_IMG_ROOT) ----------------------
     mapped_test_samples = []
     unmapped_dirs = []
     if os.path.exists(TEST_IMG_ROOT):
@@ -246,7 +195,6 @@ def train_classifier():
             if not os.path.isdir(full_dir):
                 continue
 
-            # --- 매핑 로직 (생략, 기존 코드와 동일) ---
             mapped_idx = None
             # 1) exact match
             if candidate_dir in train_class_to_idx:
@@ -274,8 +222,7 @@ def train_classifier():
             for fn in os.listdir(full_dir):
                 if fn.lower().endswith(".png"):
                     mapped_test_samples.append((os.path.join(full_dir, fn), mapped_idx))
-            # --- 매핑 로직 종료 ---
-
+           
     print(f"[Sup] Mapped Meta test sample count: {len(mapped_test_samples)}")
     if len(mapped_test_samples) == 0:
         print("[Warn] No Meta test samples were mapped to train classes. Final evaluation will be skipped.")
@@ -292,7 +239,6 @@ def train_classifier():
         )
         print("[Sup] Unmapped Meta test dirs (if any):", unmapped_dirs)
 
-    # ----- 3. SSL encoder 로드 + classifier head 생성 -----
     encoder = ViTEncoder(pretrained=False)
     ckpt_ssl = torch.load(SSL_CHECKPOINT, map_location="cpu")
     encoder.load_state_dict(ckpt_ssl["encoder_state_dict"])
@@ -300,7 +246,6 @@ def train_classifier():
 
     model = ViTClassifier(encoder, num_classes=num_classes).to(device)
 
-    # ----- Weighted Cross Entropy 사용 -----
     criterion = nn.CrossEntropyLoss(weight=class_weights)
     optimizer = torch.optim.Adam(model.parameters(), lr=SUP_LR)
 
@@ -337,7 +282,6 @@ def train_classifier():
         train_loss /= train_total
         train_acc = train_correct / train_total
 
-        # --------- Validation (TCGA 20% Holdout) ---------
         model.eval()
         val_loss, val_correct, val_total = 0.0, 0, 0
 
@@ -383,14 +327,12 @@ def train_classifier():
                 print(f"[Sup] Early stopping at epoch {epoch}. Best Val Acc: {best_val_acc:.4f}")
                 break
 
-    # ----- 4. 최종 Meta 데이터셋 (TEST_IMG_ROOT) 평가 -----
     print(f"\n========== [Final Evaluation on Meta Data ({TEST_IMG_ROOT})] ==========")
 
     if filtered_test_ds is None:
         print("[Final Eval] Skipping Meta evaluation due to no mapped samples.")
         return
 
-    # 최적 모델 로드
     if not os.path.exists(SUP_CHECKPOINT):
         # 조기 종료가 없었으면 현재 모델 사용, 있었으면 저장된 최적 모델 로드
         print("[Warn] Best model checkpoint not found. Using current model state (if training finished).")
@@ -404,13 +346,11 @@ def train_classifier():
 
     eval_model.eval()
 
-    # map target TCGA names to train class indices (best-effort)
     target_train_indices = []
     for name in TARGET_TCGA:
         if name in train_class_to_idx:
             target_train_indices.append(train_class_to_idx[name])
         else:
-            # (매핑 로직은 유지, 생략)
             base_name_try = name
             if name.startswith("TCGA-"):
                 base_name_try = name[5:]
@@ -428,7 +368,6 @@ def train_classifier():
         print("[Warn] No target TCGA classes mapped to training classes — skipping final TCGA evaluation.")
         return
 
-    # Collect probs/labels for target classes only
     tcga_probs = []
     tcga_labels = []
     with torch.no_grad():
@@ -453,17 +392,12 @@ def train_classifier():
     probs_arr = np.vstack(tcga_probs)  # (N, C)
     labels_arr = np.array(tcga_labels)  # (N,)
 
-    # ----- 최종 메타 데이터 평가 지표 계산 -----
-
-    # 1. Accuracy
     preds = probs_arr.argmax(axis=1)
     acc_tcga = float((preds == labels_arr).mean())
 
-    # 2. Hand & Till mAUC (요청하신 최종 지표)
     tcga_mAUC, pairwise = compute_multiclass_mauc(probs_arr, labels_arr,
                                                   class_indices=sorted(set(target_train_indices)))
 
-    # 3. Macro AUC (One-vs-Rest)
     valid_aucs = []
     per_class_auc = {}
     for tidx in sorted(set(target_train_indices)):
@@ -496,7 +430,6 @@ def train_classifier():
         for (i, j), val in pairwise.items():
             print(f"    {base_ds.classes[i]} vs {base_ds.classes[j]}: {val:.4f}")
 
-    # 최종 결과 CSV 저장
     csv_path = "final_meta_evaluation_summary.csv"
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
