@@ -57,11 +57,9 @@ def train_multimodal():
         transform=get_sup_transform(),
     )
 
-    # 유효 샘플만
     valid_indices = [i for i, s in enumerate(dataset.samples) if s["label"] >= 0]
-    print(f"✅ Valid samples: {len(valid_indices)}")
+    print(f"Valid samples: {len(valid_indices)}")
 
-    # label remap
     raw_labels = [dataset.samples[i]["label"] for i in valid_indices]
     unique_labels = sorted(list(set(raw_labels)))
     label_map = {l: i for i, l in enumerate(unique_labels)}
@@ -70,15 +68,13 @@ def train_multimodal():
 
     labels = np.array([dataset.samples[i]["label"] for i in valid_indices])
     NUM_CLASSES = len(unique_labels)
-    print(f"✅ Num classes: {NUM_CLASSES}")
+    print(f"Num classes: {NUM_CLASSES}")
 
-    # class weights
     class_counts = np.bincount(labels)
     class_weights = 1.0 / (class_counts + 1e-6)
     class_weights = class_weights / class_weights.sum() * NUM_CLASSES
     class_weights = torch.tensor(class_weights, dtype=torch.float32).to(device)
 
-    # patient grouping
     patient_to_indices = defaultdict(list)
     for idx, s in enumerate(dataset.samples):
         if idx in valid_indices:
@@ -119,9 +115,6 @@ def train_multimodal():
             num_workers=NUM_WORKERS,
         )
 
-        # -----------------------
-        # Image encoder
-        # -----------------------
         image_encoder = models.vit_b_16(weights=None)
         image_encoder.heads = nn.Identity()
         if os.path.exists(SSL_CHECKPOINT):
@@ -129,9 +122,6 @@ def train_multimodal():
             image_encoder.load_state_dict(ckpt["encoder_state_dict"], strict=False)
         image_encoder = image_encoder.to(device)
 
-        # -----------------------
-        # Multimodal model
-        # -----------------------
         model = MultimodalModel(
             num_classes=NUM_CLASSES,
             mirna_input_dim=dataset.mirna_features.shape[1],
@@ -155,9 +145,6 @@ def train_multimodal():
         best_mauc = 0.0
         best_model_state = None
 
-        # -----------------------
-        # Epoch loop
-        # -----------------------
         for epoch in range(1, MULTIMODAL_EPOCHS + 1):
             model.train()
             for img, mirna, label in tqdm(train_loader):
@@ -170,7 +157,6 @@ def train_multimodal():
                 optimizer.step()
             scheduler.step()
 
-            # Validation
             model.eval()
             all_probs, all_labels = [], []
             with torch.no_grad():
@@ -188,19 +174,13 @@ def train_multimodal():
 
             if val_mauc > best_mauc:
                 best_mauc = val_mauc
-                best_model_state = model.state_dict()  # best 모델 저장
+                best_model_state = model.state_dict()  
 
-        # -----------------------
-        # Fold 최종 저장
-        # -----------------------
         fold_model_path = f"best_fold{fold}.pt"
         torch.save(best_model_state, fold_model_path)
         print(f"Fold {fold+1} Best mAUC: {best_mauc:.4f} | Saved: {fold_model_path}")
         fold_scores.append(best_mauc)
 
-        # -----------------------
-        # 인코더만 따로 저장 (final_eval용)
-        # -----------------------
         image_encoder_path = f"image_encoder_fold{fold}.pth"
         mirna_encoder_path = f"mirna_encoder_fold{fold}.pth"
         torch.save(model.image_encoder.state_dict(), image_encoder_path)
