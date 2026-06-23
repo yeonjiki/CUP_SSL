@@ -4,9 +4,6 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-# =========================
-# 경로 설정
-# =========================
 METH_DIR = "/Volumes/T7/CUP Project Data/Methylation array Datasets"
 MIRNA_DIR = "/Volumes/T7/CUP Project Data/miRNA-seq Datasets"
 META_MIRNA_DIR = "/Volumes/T7/CUP Project Data/TCGA-meta-miRNA"
@@ -22,9 +19,6 @@ def clr_transform(x):
     log_x = np.log(x)
     return log_x - np.mean(log_x)
 
-# =========================
-# 1️⃣ Methylation 환자 추출
-# =========================
 def extract_patients(base_dir):
     patients = set()
 
@@ -54,13 +48,10 @@ def extract_patients(base_dir):
     return patients
 
 
-print("🔍 Extracting methylation patients...")
+print("Extracting methylation patients...")
 meth_patients = extract_patients(METH_DIR)
 
-# =========================
-# 2️⃣ miRNA metadata 매핑
-# =========================
-print("🔍 Mapping miRNA file_id to patients...")
+print("Mapping miRNA file_id to patients...")
 
 fileid_to_patient = {}
 mirna_patients = set()
@@ -92,9 +83,6 @@ for cancer_type in os.listdir(MIRNA_DIR):
                 fileid_to_patient[file_id] = pid
                 mirna_patients.add(pid)
 
-# =========================
-# 3️⃣ 공통 환자 계산
-# =========================
 common_patients = meth_patients & mirna_patients
 
 print(f"Total methylation patients: {len(meth_patients)}")
@@ -102,12 +90,9 @@ print(f"Total miRNA patients: {len(mirna_patients)}")
 print(f"Common patients: {len(common_patients)}")
 
 if len(common_patients) == 0:
-    raise RuntimeError("❌ No overlapping patients found.")
+    raise RuntimeError("No overlapping patients found.")
 
-# =========================
-# 4️⃣ TCGA miRNA expression 로딩
-# =========================
-print("📦 Loading TCGA miRNA expression...")
+print("Loading TCGA miRNA expression...")
 
 patient_to_vector = {}
 
@@ -149,10 +134,10 @@ for cancer_type in os.listdir(MIRNA_DIR):
                     patient_to_vector[patient_id] = values
 
             except Exception as e:
-                print(f"⚠️ Error reading {file_path}: {e}")
+                print(f"Error reading {file_path}: {e}")
                 continue
 
-print("🧮 Converting TCGA to numpy...")
+print("Converting TCGA to numpy...")
 
 all_patient_ids = sorted(patient_to_vector.keys())
 all_vectors = [patient_to_vector[pid] for pid in all_patient_ids]
@@ -161,12 +146,9 @@ X = np.stack(all_vectors, axis=0)
 np.save(os.path.join(SAVE_DIR, "processed_mirna_all.npy"), X)
 np.save(os.path.join(SAVE_DIR, "processed_mirna_ids.npy"), np.array(all_patient_ids))
 
-print(f"✅ TCGA saved: {X.shape}")
+print(f"TCGA saved: {X.shape}")
 
-# =========================
-# 5️⃣ META miRNA 동일 방식 처리
-# =========================
-print("\n🔵 Loading META miRNA expression...")
+print("\n Loading META miRNA expression...")
 
 meta_patient_to_vector = {}
 
@@ -189,17 +171,16 @@ for root, _, files in os.walk(META_MIRNA_DIR):
             values = np.log2(values + 1.0)
             values = clr_transform(values)
 
-            # 파일명에서 patient id 추출
             patient_id = to_patient_id(f)
 
             if patient_id not in meta_patient_to_vector:
                 meta_patient_to_vector[patient_id] = values
 
         except Exception as e:
-            print(f"⚠️ META Error reading {file_path}: {e}")
+            print(f"META Error reading {file_path}: {e}")
             continue
 
-print("🧮 Converting META to numpy...")
+print("Converting META to numpy...")
 
 meta_ids = sorted(meta_patient_to_vector.keys())
 meta_vectors = [meta_patient_to_vector[pid] for pid in meta_ids]
@@ -208,6 +189,6 @@ X_meta = np.stack(meta_vectors, axis=0)
 np.save(os.path.join(SAVE_DIR, "processed_meta_mirna_all.npy"), X_meta)
 np.save(os.path.join(SAVE_DIR, "processed_meta_mirna_ids.npy"), np.array(meta_ids))
 
-print(f"✅ META saved: {X_meta.shape}")
+print(f"META saved: {X_meta.shape}")
 
-print("\n🎉 ALL DONE")
+print("\n ALL DONE")
