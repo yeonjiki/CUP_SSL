@@ -73,11 +73,11 @@ def build_patient_file_map(base_dir, file_suffix):
 
     return cancer_map
 
-print("🔍 Building TRAIN maps...")
+print("Building TRAIN maps...")
 meth_txt_map = build_patient_file_map(METH_DIR, ".txt")
 mirna_map = build_patient_file_map(MIRNA_DIR, "mirnas.quantification.txt")
 
-print("🔍 Building META maps...")
+print("Building META maps...")
 meth_meta_map = build_patient_file_map(METH_META_DIR, ".txt")
 mirna_meta_map = build_patient_file_map(MIRNA_META_DIR, "mirnas.quantification.txt")
 
@@ -90,7 +90,7 @@ all_cancers = sorted(train_cancers | meta_cancers_norm)
 
 label_dict = {cancer: i for i, cancer in enumerate(all_cancers)}
 
-print("🔥 ALL cancers:", all_cancers)
+print("ALL cancers:", all_cancers)
 
 train_samples = []
 
