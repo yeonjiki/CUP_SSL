@@ -19,9 +19,6 @@ from torchvision import models
 from multimodal_model import MultimodalModel
 from image_dataset import get_sup_transform
 
-# -----------------------------------------------------------------------
-# Config
-# -----------------------------------------------------------------------
 SEED                  = 42
 MULTIMODAL_BATCH_SIZE = 32
 NUM_WORKERS           = 2
@@ -34,21 +31,15 @@ MIRNA_ENCODER_PATH    = "mirna_encoder_fold{}.pth"
 IMG_FEAT_DIM      = 256
 MIRNA_FEAT_DIM    = 256
 
-# SSL (변경 없음)
 SSL_PROJ_DIM      = 128
 SSL_TEMPERATURE   = 0.07
 SSL_WEIGHT        = 0.3
 
-# Stability — 정규화 강화
-WARMUP_EPOCHS     = 5    # 3 → 5
-MIXUP_ALPHA       = 0.4  # 0.2 → 0.4
-LABEL_SMOOTHING   = 0.2  # 0.1 → 0.2
-TOP_K_CHECKPOINTS = 5    # 3 → 5
+WARMUP_EPOCHS     = 5    
+MIXUP_ALPHA       = 0.4  # 
+LABEL_SMOOTHING   = 0.2  
+TOP_K_CHECKPOINTS = 5  
 
-
-# -----------------------------------------------------------------------
-# CrossModalWrapper
-# -----------------------------------------------------------------------
 class ProjectionHead(nn.Module):
     def __init__(self, in_dim: int, out_dim: int):
         super().__init__()
@@ -84,10 +75,6 @@ class CrossModalWrapper(nn.Module):
 
         return logits, z_img, z_mirna
 
-
-# -----------------------------------------------------------------------
-# Cross-modal InfoNCE
-# -----------------------------------------------------------------------
 def cross_modal_infonce(z_img, z_mirna, temperature=SSL_TEMPERATURE):
     B       = z_img.size(0)
     sim_i2m = torch.mm(z_img,   z_mirna.T) / temperature
@@ -96,10 +83,6 @@ def cross_modal_infonce(z_img, z_mirna, temperature=SSL_TEMPERATURE):
     return (F.cross_entropy(sim_i2m, labels) +
             F.cross_entropy(sim_m2i, labels)) * 0.5
 
-
-# -----------------------------------------------------------------------
-# Mixup
-# -----------------------------------------------------------------------
 def mixup_batch(img, mirna, label, alpha=MIXUP_ALPHA):
     if alpha <= 0:
         return img, mirna, label, label, 1.0
@@ -113,10 +96,6 @@ def mixup_batch(img, mirna, label, alpha=MIXUP_ALPHA):
 def mixup_criterion(criterion, logits, y_a, y_b, lam):
     return lam * criterion(logits, y_a) + (1 - lam) * criterion(logits, y_b)
 
-
-# -----------------------------------------------------------------------
-# Scheduler
-# -----------------------------------------------------------------------
 def build_scheduler(optimizer, warmup_epochs, total_epochs):
     warmup = torch.optim.lr_scheduler.LambdaLR(
         optimizer,
@@ -127,10 +106,6 @@ def build_scheduler(optimizer, warmup_epochs, total_epochs):
     )
     return warmup, cosine
 
-
-# -----------------------------------------------------------------------
-# Misc utils
-# -----------------------------------------------------------------------
 def set_seed(seed=SEED):
     random.seed(seed)
     np.random.seed(seed)
@@ -179,10 +154,6 @@ def majority_label(indices, samples):
     lbls = [samples[i]["label"] for i in indices]
     return max(set(lbls), key=lbls.count)
 
-
-# -----------------------------------------------------------------------
-# Dataset
-# -----------------------------------------------------------------------
 class MetaDataset(Dataset):
     def __init__(self, samples, transform=None):
         self.samples   = samples
@@ -200,10 +171,6 @@ class MetaDataset(Dataset):
                 torch.tensor(s["mirna_norm"], dtype=torch.float32),
                 torch.tensor(s["label"],      dtype=torch.long))
 
-
-# -----------------------------------------------------------------------
-# Model loader (ViT-B/16)
-# -----------------------------------------------------------------------
 def load_model(num_classes, mirna_dim, device, fold) -> CrossModalWrapper:
     image_encoder = models.vit_b_16(weights=None)
     image_encoder.heads = nn.Identity()  # output: (B, 768)
@@ -233,10 +200,6 @@ def load_model(num_classes, mirna_dim, device, fold) -> CrossModalWrapper:
     model.to(device)
     return model
 
-
-# -----------------------------------------------------------------------
-# Main
-# -----------------------------------------------------------------------
 def train_meta():
     set_seed()
     device = get_device()
@@ -301,7 +264,7 @@ def train_meta():
         model     = load_model(num_classes, mirna_dim, device, fold)
 
         optimizer = torch.optim.AdamW([
-            {"params": model.base.image_encoder.parameters(), "lr": 5e-6},  # 1e-5 → 5e-6
+            {"params": model.base.image_encoder.parameters(), "lr": 5e-6},  
             {"params": model.base.mirna_encoder.parameters(), "lr": 1e-4},
             {"params": model.base.img_proj.parameters(),      "lr": 1e-3},
             {"params": model.base.gate.parameters(),          "lr": 1e-3},
@@ -342,7 +305,6 @@ def train_meta():
             else:
                 cosine_sched.step()
 
-            # ── Validation ──────────────────────────────────────────────
             model.eval()
             all_probs, all_labels_list = [], []
             with torch.no_grad():
@@ -369,7 +331,6 @@ def train_meta():
         top_epochs = sorted(ep for _, ep, _ in top_k_pool)
         print(f"\nEnsembling top-{TOP_K_CHECKPOINTS} checkpoints (epochs: {top_epochs})")
 
-        # ── Ensemble evaluation ─────────────────────────────────────────
         ensemble_probs = []
         for _, _, state in top_k_pool:
             model.load_state_dict({k: v.to(device) for k, v in state.items()})
