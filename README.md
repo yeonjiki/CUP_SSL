@@ -8,7 +8,6 @@ This repository provides the code for our CUP-specific self-supervised learning 
 
 - **DNA methylation arrays** converted into images and processed via a Vision Transformer (ViT) backbone
 - **microRNA (miRNA) expression data** transformed using centered nonlinear transformation to preserve relative expression patterns
-- **Histopathology images** (label-limited) combined with miRNA data to learn complementary morphological representations
 
 By fusing molecular and histopathological features, the model learns subtle, diffuse, and context-dependent morphological cues characteristic of metastatic lesions in CUP.
 
@@ -45,8 +44,7 @@ Once data is downloaded and preprocessed, organize it as follows:
 ```
 data/
 ├── methylation/        # Methylation array images
-├── mirna/              # miRNA expression files (.csv or .tsv)
-└── histopathology/     # Histopathology image patches
+└── mirna/              # miRNA expression files
 ```
 
 ---
@@ -79,4 +77,4 @@ python evaluate.py --checkpoint checkpoints/best_model.pth --data_root data/
 
 ## Results
 
-Our framework outperforms comparable state-of-the-art baselines on the real-world CUP benchmark. See the paper for full quantitative results and analysis.
+Our framework outperforms comparable baselines on the real-world CUP benchmark. See the paper for full quantitative results and analysis.
