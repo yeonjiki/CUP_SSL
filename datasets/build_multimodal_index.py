@@ -7,7 +7,6 @@ METH_DIR = "/Volumes/T7/CUP Project Data/Methylation array Datasets"
 MIRNA_DIR = "/Volumes/T7/CUP Project Data/miRNA-seq Datasets"
 METH_PNG_DIR = "/Users/annkim/PycharmProjects/CUP_Project_Journal/methylation_images"
 
-# META
 METH_META_DIR = "/Volumes/T7/CUP Project Data/TCGA-meta"
 MIRNA_META_DIR = "/Volumes/T7/CUP Project Data/TCGA-meta-miRNA"
 METH_META_PNG_DIR = "/Users/annkim/PycharmProjects/CUP_Project_Journal/methylation_images_tcga"
