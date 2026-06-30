@@ -11,10 +11,6 @@ from multimodal_model import MultimodalModel
 from image_dataset import get_sup_transform
 from config import NUM_WORKERS
 
-
-# ------------------------------------------------
-# Hand & Till mAUC
-# ------------------------------------------------
 def compute_multiclass_mauc(probs, labels):
 
     classes = np.unique(labels)
@@ -45,10 +41,6 @@ def compute_multiclass_mauc(probs, labels):
 
     return float(np.mean(scores))
 
-
-# ------------------------------------------------
-# Device
-# ------------------------------------------------
 def get_device():
 
     if torch.cuda.is_available():
@@ -63,10 +55,6 @@ def get_device():
         print("Using CPU")
         return torch.device("cpu")
 
-
-# ------------------------------------------------
-# MAIN
-# ------------------------------------------------
 def evaluate_meta():
 
     device = get_device()
@@ -102,10 +90,6 @@ def evaluate_meta():
     print("META samples:", len(dataset))
     print("NUM_CLASSES:", NUM_CLASSES)
 
-    # ------------------------------------------------
-    # 5 fold ensemble
-    # ------------------------------------------------
-
     all_fold_probs = []
 
     for fold in range(1, 6):
@@ -124,7 +108,6 @@ def evaluate_meta():
 
         model.load_state_dict(ckpt)
 
-        # 🔵 META miRNA SSL encoder 사용
         mirna_ssl = torch.load(
             "mirna_ssl_encoder_meta.pt",
             map_location=device
@@ -158,10 +141,6 @@ def evaluate_meta():
 
         all_fold_probs.append(probs)
 
-    # ------------------------------------------------
-    # Ensemble prediction
-    # ------------------------------------------------
-
     final_probs = np.mean(all_fold_probs, axis=0)
 
     labels = np.array([s["label"] for s in dataset.samples])
@@ -177,10 +156,6 @@ def evaluate_meta():
     print("==============================")
     print("Accuracy:", acc)
     print("mAUC:", mauc)
-
-    # ------------------------------------------------
-    # Save CSV
-    # ------------------------------------------------
 
     with open("meta_multimodal_results.csv", "w") as f:
 
