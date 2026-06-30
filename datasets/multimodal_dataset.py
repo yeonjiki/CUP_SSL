@@ -1,5 +1,3 @@
-# multimodal_dataset.py
-
 import os
 import pickle
 import numpy as np
@@ -19,10 +17,6 @@ def normalize_id(pid: str):
     pid = pid.strip()
     return pid
 
-
-# =========================================================
-# 🔹 Train / Validation Dataset
-# =========================================================
 class MultimodalDataset(Dataset):
 
     def __init__(
@@ -34,15 +28,9 @@ class MultimodalDataset(Dataset):
     ):
         self.transform = transform
 
-        # ----------------------------------
-        # 1️⃣ Load image index
-        # ----------------------------------
         with open(index_path, "rb") as f:
             all_samples = pickle.load(f)
 
-        # ----------------------------------
-        # 2️⃣ Load miRNA features
-        # ----------------------------------
         self.mirna_features = np.load(mirna_feature_path)
         self.mirna_ids = np.load(mirna_id_path)
 
@@ -54,9 +42,6 @@ class MultimodalDataset(Dataset):
             pid: i for i, pid in enumerate(self.mirna_ids)
         }
 
-        # ----------------------------------
-        # 3️⃣ Match patients
-        # ----------------------------------
         matched_samples = []
 
         for sample in all_samples:
@@ -80,17 +65,14 @@ class MultimodalDataset(Dataset):
 
         self.samples = matched_samples
 
-        # ----------------------------------
-        # Logging
-        # ----------------------------------
-        print("✅ MultimodalDataset Loaded")
+        print("MultimodalDataset Loaded")
         print(f"   Total index samples : {len(all_samples)}")
         print(f"   Total miRNA samples : {len(self.mirna_ids)}")
         print(f"   Matched samples     : {len(self.samples)}")
 
         if len(self.samples) == 0:
             raise ValueError(
-                "❌ No matched samples found.\n"
+                "No matched samples found.\n"
                 "Check patient_id format"
             )
 
@@ -120,10 +102,6 @@ class MultimodalDataset(Dataset):
 
         return image, mirna, label
 
-
-# =========================================================
-# 🔥 CUP Dataset (JSON 기반, 최종)
-# =========================================================
 class CUPMultimodalDataset(Dataset):
     def __init__(
         self,
@@ -138,9 +116,6 @@ class CUPMultimodalDataset(Dataset):
         self.transform = transform
         self.class_to_idx = class_to_idx
 
-        # ----------------------------------
-        # 1️⃣ Load miRNA
-        # ----------------------------------
         mirna_dict = {}
 
         for fn in os.listdir(mirna_root):
@@ -150,9 +125,6 @@ class CUPMultimodalDataset(Dataset):
 
         print(f"[CUP] Loaded miRNA: {len(mirna_dict)}")
 
-        # ----------------------------------
-        # 2️⃣ Build image index (🔥 속도 개선)
-        # ----------------------------------
         image_index = {}
 
         for cancer_dir in os.listdir(img_root):
@@ -164,7 +136,6 @@ class CUPMultimodalDataset(Dataset):
                 if not img_fn.endswith(".png"):
                     continue
 
-                # pid 포함 여부 기반 인덱싱
                 for pid in mirna_dict.keys():
                     if pid in img_fn:
                         if pid not in image_index:
@@ -175,9 +146,6 @@ class CUPMultimodalDataset(Dataset):
 
         print(f"[CUP] Image index built: {len(image_index)} patients")
 
-        # ----------------------------------
-        # 3️⃣ Load JSON metadata
-        # ----------------------------------
         import json
 
         json_files = [
@@ -187,9 +155,6 @@ class CUPMultimodalDataset(Dataset):
 
         print(f"[CUP] Found JSON files: {len(json_files)}")
 
-        # ----------------------------------
-        # 4️⃣ Match all modalities
-        # ----------------------------------
         for jf in json_files:
 
             json_path = os.path.join(json_root, jf)
@@ -225,15 +190,12 @@ class CUPMultimodalDataset(Dataset):
                     "label": label,
                     "patient_id": pid,
                 })
-
-        # ----------------------------------
-        # Logging
-        # ----------------------------------
-        print("✅ CUPMultimodalDataset Loaded (FINAL)")
+                
+        print("CUPMultimodalDataset Loaded (FINAL)")
         print(f"   Total samples: {len(self.samples)}")
 
         if len(self.samples) == 0:
-            print("⚠️ WARNING: No matched CUP samples found")
+            print("WARNING: No matched CUP samples found")
             print("Check:")
             print("- JSON patient_id")
             print("- image naming")
